@@ -1,36 +1,59 @@
 const { response, request } = require('express')
+const bcryptjs = require('bcryptjs');
 
+const Usuario = require('../models/usuario');
 
- const usuariosGet = (req = request, res = response ) => {
+ const usuariosGet =  async ( req = request, res = response ) => {
     
-    const { q, nombre, page = 1, limit } = req.query;
+    const { limite = 5, desde = 0 } = req.query;
+    const query = { estado:true };
+
+    //Promise.all() todas las promesas que se mande van a ser simultaneas
+    const [ total, usuarios ] = await Promise.all([
+        Usuario.countDocuments( query ),
+        Usuario.find( query )
+            .skip( Number( desde ) )
+            .limit( Number(limite) )
+    ]);
 
     res.json({
-        ok: true,
-        msg: 'get API - controlador', 
-        q, nombre, page, limit
-    })
+        total,
+        usuarios
+    });
 }
 
-const usuariosPost = (req, res = response ) => {
+const usuariosPost = async (req, res = response ) => {
 
-    const body = req.body;
+    const { nombre, correo, password, rol } = req.body;
+    //crear usuario
+    const usuario = new Usuario({ nombre, correo, password, rol });
+    //Encriptar la contraseña
+        //genera sout(numero de vueltas hacer mas complicado la encriptacion)
+    const salt = bcryptjs.genSaltSync(); 
+        //hacer el has (incriptar en una sola via)
+    usuario.password = bcryptjs.hashSync( password, salt );
+    
+    //guardar en la DB
+    await usuario.save();
 
     res.json({
-            ok: true,
-            msg: 'post API - controlador',
-            body
-        }) 
-    }
-const usuariosPut = (req, res = response ) => {
+            usuario
+        })  
+}
+const usuariosPut = async ( req, res = response ) => {
 
     const id = req.params.id;
+    //escluir los datos que no se desea actulizar - ..resto seran actulizados
+    const { _id, password, google, correo, ...resto } = req.body;
+    
+    if( password ){
+        const salt = bcryptjs.genSaltSync(); 
+        resto.password = bcryptjs.hashSync( password, salt );
+    }
+    //findByIdAndUpdate - Buscalo por el id y actulizalo
+    const usuario = await Usuario.findByIdAndUpdate( id, resto );
 
-    res.json({
-        ok: true,
-        msg: 'put API - controlador',
-        id
-    })
+    res.json( usuario );
 }
 const usuariosPatch = (req, res = response ) => {
     res.json({
@@ -39,10 +62,17 @@ const usuariosPatch = (req, res = response ) => {
     })
 
 }
-const usuarioDelete = (req, res = response ) => {
+const usuarioDelete = async ( req, res = response ) => {
+
+    const { id } =  req.params;
+    
+    //Fisicamente lo borramos
+    // const usuario = await Usuario.findByIdAndDelete( id );
+
+    const usuario = await Usuario.findByIdAndUpdate( id, { estado: false } );
+
     res.json({
-        ok: true,
-        msg: 'delet API - controlador'
+        usuario
     })
 }
 
