@@ -47,7 +47,8 @@ const UsarioSchema = Schema({
 
 //metodo para modificar el toJSON sacando el __v, password
 UsarioSchema.methods.toJSON = function () {
-    const { __v, password, ...usuario } = this.toObject();
+    const { __v, password, _id , ...usuario } = this.toObject();
+    usuario.uid = _id;
     return usuario;
 }
 
